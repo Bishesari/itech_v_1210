@@ -31,4 +31,6 @@ Route::middleware(['auth'])->group(function () {
             ),
         )
         ->name('two-factor.show');
+
+    Volt::route('select_role', 'auth.select-role')->name('select_role');
 });

@@ -9,27 +9,37 @@ new class extends Component {
     public string $mode = '';
     public string $user_name = '';
     public string $password = '';
+    public bool $remember = false;
 
     public function login(): void
     {
         $key = Str::lower($this->user_name) . '|' . request()->ip();
-
         if (RateLimiter::tooManyAttempts($key, 5)) {
-            $this->addError('user_name', __('تعداد تلاش‌های ناموفق زیاد بوده. لطفاً یک دقیقه دیگر دوباره امتحان کنید.'));
+            $this->addError('user_name', __('تلاش‌های ناموفق زیاد! یک دقیقه دیگر تلاش کنید.'));
             return;
         }
-
-        if (Auth::attempt(['email' => $this->user_name, 'password' => $this->password])) {
+        if (Auth::attempt(['user_name' => $this->user_name, 'password' => $this->password], $this->remember))
+        {
             session()->regenerate();
             RateLimiter::clear($key);   // موفق شد → ریست
-            return;
+
+            $roles = Auth::user()->getAllRolesWithInstitutes();
+
+            if ($roles->count() === 1) {
+                $role = $roles->first();
+                session([
+                    'active_role_id' => $role->role_id,
+                    'active_institute_id' => $role->institute_id,
+                ]);
+                return;
+            }
+            else{
+                $this->redirectRoute('select_role');
+            }
         }
-
         RateLimiter::hit($key);  // اشتباه → افزایش شمارنده
-
         $this->addError('password', __('نام کاربری یا رمز عبور اشتباه است.'));
     }
-
     public function set_mode($mode): void
     {
         # mode is login or register
@@ -39,6 +49,7 @@ new class extends Component {
     public function reset_all(): void
     {
         $this->reset();
+        $this->resetErrorBag();
     }
 
 }; ?>
@@ -92,7 +103,7 @@ new class extends Component {
 
                         <!-- Remember Me -->
                         <flux:field variant="inline">
-                            <flux:checkbox name="remember" class="cursor-pointer"/>
+                            <flux:checkbox wire:model="remember" class="cursor-pointer"/>
                             <flux:label class="cursor-pointer">{{__('بخاطرسپاری')}}</flux:label>
                         </flux:field>
                         @if (Route::has('password.request'))
@@ -118,8 +129,6 @@ new class extends Component {
             </div>
 
         </flux:modal>
-
-
 
         {{-- Registration Part --}}
         <flux:modal.trigger name="register">

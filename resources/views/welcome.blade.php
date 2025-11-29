@@ -1,3 +1,5 @@
-<x-layouts.guest title="آموزشگاه آی تک - خوش آمدید.">
+<x-layouts.public title="آموزشگاه آی تک - خوش آمدید.">
+{{session('role_id')}}
+sdsd
 
-</x-layouts.guest>
+</x-layouts.public>

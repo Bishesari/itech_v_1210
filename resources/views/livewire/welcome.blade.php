@@ -5,7 +5,8 @@ use Livewire\Attributes\Title;
 use Livewire\Volt\Component;
 
 
-new #[Layout('components.layouts.guest')]
+new
+#[Layout('components.layouts.public')]
 #[Title('Login')]
 class extends Component {
     //

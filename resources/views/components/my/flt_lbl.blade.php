@@ -11,5 +11,5 @@
     peer-[:not(:placeholder-shown)]:right-2.5 peer-[:not(:placeholder-shown)]:text-sm
 
     ">{{$label}}</label>
-    @error($name)<div class="mt-0.5 text-sm text-red-600 text-center">{{$message}}</div>@enderror
+    @error($name)<div class="mt-0.5 text-sm text-red-600 dark:text-red-400 text-center">{{$message}}</div>@enderror
 </div>
