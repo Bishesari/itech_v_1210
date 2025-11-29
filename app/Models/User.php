@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
-    protected $fillable = ['user_name', 'password',];
+    protected $fillable = ['user_name', 'password'];
     protected $hidden = ['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'];
     protected function casts(): array
     {
@@ -46,8 +46,5 @@ class User extends Authenticatable
             )
             ->get();
     }
-
-
-
 
 }
