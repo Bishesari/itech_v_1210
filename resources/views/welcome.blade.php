@@ -1,5 +1,4 @@
 <x-layouts.public title="آموزشگاه آی تک - خوش آمدید.">
-{{session('role_id')}}
-sdsd
+{{session('active_role_id')}}
 
 </x-layouts.public>
