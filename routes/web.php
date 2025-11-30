@@ -68,7 +68,6 @@ Volt::route('founder/users/index', 'user.index.founder')->name('users.for.founde
 Volt::route('user/{user}/show', 'user.show')->name('show_user')->middleware(['auth', 'signed']);
 
 
-
 Volt::route('sa/institutes/index', 'institute.index.sa')->name('institutes.for.sa')
     ->middleware(['auth', SuperAdmin::class]);
 Volt::route('founder/institutes/index', 'institute.index.founder')->name('institutes.for.founder')

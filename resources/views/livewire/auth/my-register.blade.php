@@ -42,6 +42,7 @@ class extends Component {
     public function otp_send(): void
     {
         if ($this->log_check()) {
+            $this->u_otp = '';
             $otp = NumericOTP();
             OtpSend::dispatch($this->mobile_nu, $otp);
             OtpLog::create([
@@ -125,6 +126,7 @@ class extends Component {
             ]);
             InstituteRoleUser::create([
                 'user_id' => $user->id,
+                'role_id' => 1,
                 'assigned_by' => $user->id,
             ]);
             DB::table('otp_logs')->where('n_code', $this->n_code)->where('mobile_nu', $this->mobile_nu)->delete();
@@ -180,48 +182,31 @@ class extends Component {
 
     </div>
 
-
+    {{-------------------------- OTP VERIFY Modal --------------------------}}
     <flux:modal name="otp_verify" class="md:w-96" :dismissible="false">
-        <div class="space-y-6">
-            <div>
-                <flux:heading size="lg" class="text-center text-indigo-500">{{__('تایید کد پیامکی')}}</flux:heading>
-                <flux:text class="mt-2 text-center">{{__('ارسال را کلیک نموده و کد دریافتی را وارد کنید.')}}</flux:text>
+        <form wire:submit="otp_verify" class="space-y-8">
+            <div class="max-w-72 mx-auto space-y-2">
+                <flux:heading size="lg" class="text-center">{{__('تایید کد پیامکی')}}</flux:heading>
+                <flux:text class="text-center">{{__('دکمه ارسال را کلیک نموده و کد دریافتی را وارد کنید.')}}</flux:text>
             </div>
-            <form method="POST" wire:submit="otp_verify" class="flex flex-col gap-6" autocomplete="off">
-                <div x-data @focus-otp-input.window="$nextTick(() => $refs.otp.focus())"
-                     class="grid grid-cols-2 gap-4">
-
-                    @if ($timer > 0)
-                        <!-- دکمه ارسال پیامک -->
-                        <flux:button type="button" variant="filled" disabled>
-                            <span id="timer">{{$timer}}</span>{{ __('تا ارسال مجدد') }}
-                        </flux:button>
-                    @else
-                        <!-- دکمه ارسال پیامک -->
-                        <flux:button type="button" variant="primary" color="teal" class="cursor-pointer"
-                                     wire:click="otp_send">
-                            {{ __('ارسال پیامک') }}
-                        </flux:button>
-                    @endif
-
-                    <!-- 🔹 این input بعد از ارسال پیامک فوکوس می‌گیرد -->
-                    <flux:input x-ref="otp" wire:model="u_otp" type="text" maxlength="6" required autofocus
-                                :placeholder="__('کد پیامک شده')"
-                                class:input="text-center font-semibold placeholder:font-normal"
-                                style="direction:ltr"/>
-                </div>
-
-
+            <flux:otp wire:model="u_otp" submit="auto" length="6" label="OTP Code" label:sr-only :error:icon="false"
+                      error:class="text-center" class="mx-auto" dir="ltr"/>
+            @if($otp_log_check_err)
                 <flux:text class="text-center" color="rose">{{$otp_log_check_err}}</flux:text>
-                <flux:text
-                    class="mt-2 text-center">{{__('کدملی: ')}}{{$n_code}}{{__(' و شماره: ')}}{{$mobile_nu}}</flux:text>
-                <div class="flex items-center justify-end">
-                    <flux:button type="submit" variant="primary" color="indigo" class="w-full cursor-pointer">
-                        {{ __('تکمیل ثبت نام') }}
+            @endif
+            <div class="space-y-4">
+                @if ($timer > 0)
+                    <!-- دکمه شمارنده ارسال پیامک -->
+                    <flux:button wire:click="otp_send" class="w-full" disabled>
+                        <span id="timer">{{$timer}}</span>{{ __(' ثانیه تا ارسال مجدد') }}
                     </flux:button>
-                </div>
-            </form>
-        </div>
+                @else
+                    <!-- دکمه ارسال پیامک -->
+                    <flux:button wire:click="otp_send" variant="primary" color="teal"
+                                 class="w-full cursor-pointer">{{ __('ارسال پیامک') }}</flux:button>
+                @endif
+            </div>
+        </form>
     </flux:modal>
 
     @script
