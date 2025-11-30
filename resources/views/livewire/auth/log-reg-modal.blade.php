@@ -252,11 +252,9 @@ new class extends Component {
                             <flux:checkbox wire:model="remember" class="cursor-pointer"/>
                             <flux:label class="cursor-pointer">{{__('بخاطرسپاری')}}</flux:label>
                         </flux:field>
-                        @if (Route::has('password.request'))
-                            <flux:link class="text-sm" :href="route('register')" wire:navigate tabindex="-1">
-                                {{ __('ریست کلمه عبور') }}
-                            </flux:link>
-                        @endif
+                        <flux:link class="text-sm" :href="route('forgotten.password')" wire:navigate tabindex="-1">
+                            {{ __('ریست کلمه عبور') }}
+                        </flux:link>
                     </div>
 
                     <flux:button type="submit" variant="primary" color="violet" class="w-full cursor-pointer">
@@ -319,7 +317,9 @@ new class extends Component {
                 </div>
                 <flux:otp wire:model="u_otp" submit="auto" length="6" label="OTP Code" label:sr-only :error:icon="false"
                           error:class="text-center" class="mx-auto" dir="ltr"/>
-                <flux:text class="text-center" color="rose">{{$otp_log_check_err}}</flux:text>
+                @if($otp_log_check_err)
+                    <flux:text class="text-center" color="rose">{{$otp_log_check_err}}</flux:text>
+                @endif
                 <div class="space-y-4">
                     @if ($timer > 0)
                         <!-- دکمه شمارنده ارسال پیامک -->
@@ -331,9 +331,6 @@ new class extends Component {
                         <flux:button wire:click="otp_send" variant="primary" color="teal"
                                      class="w-full cursor-pointer">{{ __('ارسال پیامک') }}</flux:button>
                     @endif
-
-                    <flux:button variant="primary" type="submit"
-                                 class="w-full cursor-pointer">{{ __('تکمیل ثبت نام') }}</flux:button>
                 </div>
             </form>
         </flux:modal>

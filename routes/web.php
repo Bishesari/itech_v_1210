@@ -34,3 +34,9 @@ Route::middleware(['auth'])->group(function () {
 
     Volt::route('select_role', 'auth.select-role')->name('select_role');
 });
+
+Route::middleware('guest')->group(function () {
+    Volt::route('registration', 'auth.my-register')->name('registration');
+    Volt::route('forgotten-password', 'auth.my-forgot-password')
+        ->name('forgotten.password');
+});

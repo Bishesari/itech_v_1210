@@ -6,9 +6,11 @@ use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Laravel\Fortify\Contracts\LoginResponse;
 use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
@@ -18,7 +20,25 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->instance(LoginResponse::class, new class implements LoginResponse {
+            public function toResponse($request)
+            {
+
+                $roles = Auth::user()->getAllRolesWithInstitutes();
+
+                // فقط یک نقش دارد → مستقیم به داشبورد
+                if ($roles->count() === 1) {
+                    $role = $roles->first();
+                    session([
+                        'active_role_id' => $role->role_id,
+                        'active_institute_id' => $role->institute_id,
+                    ]);
+                    return redirect()->intended(config('fortify.home'));
+                }
+                // بیش از یک نقش → هدایت به انتخاب نقش
+                return redirect()->route('select_role');
+            }
+        });
     }
 
     /**
