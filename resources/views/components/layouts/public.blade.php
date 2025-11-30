@@ -16,9 +16,8 @@
     </flux:brand>
 
     <flux:navbar class="-mb-px max-lg:hidden">
-        <flux:navbar.item icon="home" href="#" current>
-            {{ __('صفحه اول') }}
-        </flux:navbar.item>
+        <flux:navbar.item icon="home" :href="route('home')" :current="request()->routeIs('home')" wire:navigate>{{ __('صفحه اول') }}</flux:navbar.item>
+        <flux:navbar.item icon="inbox" :href="route('exams')" :current="request()->routeIs('exams')" wire:navigate>{{ __('آزمونها') }}</flux:navbar.item>
     </flux:navbar>
 
     <flux:spacer />
@@ -42,6 +41,11 @@
 
         <flux:sidebar.collapse class="in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />
     </flux:sidebar.header>
+
+    <flux:sidebar.nav>
+        <flux:sidebar.item icon="home" :href="route('home')" :current="request()->routeIs('home')" wire:navigate>{{ __('صفحه اول') }}</flux:sidebar.item>
+        <flux:sidebar.item icon="inbox" :href="route('exams')" :current="request()->routeIs('exams')" wire:navigate>{{ __('آزمونها') }}</flux:sidebar.item>
+    </flux:sidebar.nav>
 </flux:sidebar>
 
 <flux:main>

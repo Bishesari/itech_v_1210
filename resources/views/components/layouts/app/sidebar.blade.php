@@ -16,7 +16,7 @@
     <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
 
     <a href="{{ route('dashboard') }}" class="me-5 flex items-center space-x-2 rtl:space-x-reverse" wire:navigate>
-        <x-app-logo />
+        <x-logo class="text-zinc-700 dark:text-zinc-300 h-10 "/>
     </a>
     <flux:navlist variant="outline">
         @if ($activeRole)
