@@ -28,6 +28,7 @@ class RoleSeeder extends Seeder
             ['name_en' => 'Marketer', 'name_fa' => 'بازاریاب', 'assignable_by_founder' => false],
             ['name_en' => 'JobSeeker', 'name_fa' => 'کارجو', 'assignable_by_founder' => false],
             ['name_en' => 'Examinee', 'name_fa' => 'آزمون دهنده', 'assignable_by_founder' => false],
+            ['name_en' => 'Employer', 'name_fa' => 'کارفرما', 'assignable_by_founder' => false],
         ];
 
         foreach ($roles as $data) {
