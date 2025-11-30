@@ -7,16 +7,14 @@ use Illuminate\Validation\Rule;
 use Livewire\Volt\Component;
 
 new class extends Component {
-    public string $name = '';
-    public string $email = '';
+    public string $user_name = '';
 
     /**
      * Mount the component.
      */
     public function mount(): void
     {
-        $this->name = Auth::user()->name;
-        $this->email = Auth::user()->email;
+        $this->user_name = Auth::user()->user_name;
     }
 
     /**
@@ -27,23 +25,15 @@ new class extends Component {
         $user = Auth::user();
 
         $validated = $this->validate([
-            'name' => ['required', 'string', 'max:255'],
-
-            'email' => [
+            'user_name' => [
                 'required',
                 'string',
-                'lowercase',
-                'email',
-                'max:255',
+                'max:30',
                 Rule::unique(User::class)->ignore($user->id)
             ],
         ]);
 
         $user->fill($validated);
-
-        if ($user->isDirty('email')) {
-            $user->email_verified_at = null;
-        }
 
         $user->save();
 
@@ -72,45 +62,22 @@ new class extends Component {
 <section class="w-full">
     @include('partials.settings-heading')
 
-    <x-settings.layout :heading="__('Profile')" :subheading="__('Update your name and email address')">
-        <form wire:submit="updateProfileInformation" class="my-6 w-full space-y-6">
-            <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name" />
-
-            <div>
-                <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" />
-
-                @if (auth()->user() instanceof \Illuminate\Contracts\Auth\MustVerifyEmail &&! auth()->user()->hasVerifiedEmail())
-                    <div>
-                        <flux:text class="mt-4">
-                            {{ __('Your email address is unverified.') }}
-
-                            <flux:link class="text-sm cursor-pointer" wire:click.prevent="resendVerificationNotification">
-                                {{ __('Click here to re-send the verification email.') }}
-                            </flux:link>
-                        </flux:text>
-
-                        @if (session('status') === 'verification-link-sent')
-                            <flux:text class="mt-2 font-medium !dark:text-green-400 !text-green-600">
-                                {{ __('A new verification link has been sent to your email address.') }}
-                            </flux:text>
-                        @endif
-                    </div>
-                @endif
-            </div>
-
+    <x-settings.layout :heading="__('نام کاربری')" :subheading="__('نام کاربری خود را ویرایش کنید.')">
+        <form wire:submit="updateProfileInformation" class="my-6 w-full space-y-6" autocomplete="off">
+            <flux:input wire:model="user_name" :label="__('نام کاربری')" type="text" required dir="ltr" class:input="text-center" maxlength="30"/>
             <div class="flex items-center gap-4">
                 <div class="flex items-center justify-end">
-                    <flux:button variant="primary" type="submit" class="w-full" data-test="update-profile-button">
-                        {{ __('Save') }}
+                    <flux:button variant="primary" color="yellow" size="sm" type="submit" class="w-full cursor-pointer" data-test="update-password-button">
+                        {{ __('ذخیره تغییرات') }}
                     </flux:button>
                 </div>
-
-                <x-action-message class="me-3" on="profile-updated">
-                    {{ __('Saved.') }}
+                <x-action-message class="me-3 text-green-500" on="profile-updated">
+                    {{ __('ذخیره شد.') }}
                 </x-action-message>
             </div>
         </form>
 
-        <livewire:settings.delete-user-form />
+        {{--        <livewire:settings.delete-user-form />--}}
     </x-settings.layout>
 </section>
+

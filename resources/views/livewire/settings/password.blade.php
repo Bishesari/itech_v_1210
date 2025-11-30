@@ -39,39 +39,44 @@ new class extends Component {
 <section class="w-full">
     @include('partials.settings-heading')
 
-    <x-settings.layout :heading="__('Update password')" :subheading="__('Ensure your account is using a long, random password to stay secure')">
-        <form method="POST" wire:submit="updatePassword" class="mt-6 space-y-6">
+    <x-settings.layout :heading="__('بروزرسانی کلمه عبور')" :subheading="__('برای امنیت بیشتر کلمه عبور خود را تنظیم نمایید.')">
+        <form method="POST" wire:submit="updatePassword" class="mt-6 space-y-6" autocomplete="off">
             <flux:input
                 wire:model="current_password"
-                :label="__('Current password')"
+                :label="__('کلمه عبور فعلی')"
                 type="password"
                 required
-                autocomplete="current-password"
+                viewable
+                class:input="text-center tracking-widest font-semibold"
+                dir="ltr" maxlength="25" autofocus
             />
             <flux:input
                 wire:model="password"
-                :label="__('New password')"
+                :label="__('کلمه عبور جدید')"
                 type="password"
                 required
-                autocomplete="new-password"
+                viewable
+                class:input="text-center tracking-widest font-semibold"
+                dir="ltr" maxlength="25"
             />
             <flux:input
                 wire:model="password_confirmation"
-                :label="__('Confirm Password')"
+                :label="__('تکرار کلمه عبور جدید')"
                 type="password"
                 required
-                autocomplete="new-password"
+                viewable
+                class:input="text-center tracking-widest font-semibold"
+                dir="ltr" maxlength="25"
             />
 
             <div class="flex items-center gap-4">
                 <div class="flex items-center justify-end">
-                    <flux:button variant="primary" type="submit" class="w-full" data-test="update-password-button">
-                        {{ __('Save') }}
+                    <flux:button variant="primary" color="yellow" size="sm" type="submit" class="w-full cursor-pointer" data-test="update-password-button">
+                        {{ __('ذخیره تغییرات') }}
                     </flux:button>
                 </div>
-
-                <x-action-message class="me-3" on="password-updated">
-                    {{ __('Saved.') }}
+                <x-action-message class="me-3 text-green-500" on="password-updated">
+                    {{ __('ذخیره شد.') }}
                 </x-action-message>
             </div>
         </form>
