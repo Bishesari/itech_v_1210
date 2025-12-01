@@ -29,7 +29,7 @@ new class extends Component {
         if (Auth::attempt(['user_name' => $this->user_name, 'password' => $this->password], $this->remember)) {
             session()->regenerate();
             RateLimiter::clear($key);   // موفق شد → ریست
-
+            session(['url.intended' => url()->previous()]);
             $roles = Auth::user()->getAllRolesWithInstitutes();
 
             if ($roles->count() === 1) {
@@ -40,9 +40,10 @@ new class extends Component {
                 ]);
                 $this->dispatch('reloadPage');
                 return;
-            } else {
-                $this->redirectRoute('select_role');
             }
+
+            $this->redirectRoute('select_role');
+
         }
         RateLimiter::hit($key);  // اشتباه → افزایش شمارنده
         $this->addError('password', __('نام کاربری یا رمز عبور اشتباه است.'));

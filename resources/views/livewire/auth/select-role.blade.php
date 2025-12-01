@@ -33,7 +33,7 @@ class extends Component {
             return;
         }
         // ✅ همه‌چیز اوکیه، هدایت به داشبورد
-        $this->redirectRoute('dashboard');
+        $this->redirectIntended(route('dashboard'));
     }
 
 }; ?>
