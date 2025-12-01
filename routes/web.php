@@ -98,7 +98,7 @@ Route::post('sep/pay', [TestSepController::class, 'pay'])->name('sep.pay');
 Volt::route('sepp/pay', 'pay');
 
 
-Route::get('/purchase-icdl', PurchaseIcdl::class);
+Route::get('/purchase-icdl', PurchaseIcdl::class)->name('icdl.purchase');
 
 Route::post('/payment/callback', [PaymentController::class, 'callback'])
     ->withoutMiddleware(['web'])->name('payment.callback');

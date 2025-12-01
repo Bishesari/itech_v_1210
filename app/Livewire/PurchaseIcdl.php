@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Product;
 use Illuminate\Support\Str;
+use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Illuminate\Support\Facades\Http;
 
@@ -51,6 +52,7 @@ class PurchaseIcdl extends Component
         }
     }
 
+    #[Layout('components.layouts.public')]
     public function render()
     {
         return view('livewire.purchase-icdl');

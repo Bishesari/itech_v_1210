@@ -38,6 +38,7 @@ new class extends Component {
                     'active_role_id' => $role->role_id,
                     'active_institute_id' => $role->institute_id,
                 ]);
+                $this->dispatch('reloadPage');
                 return;
             } else {
                 $this->redirectRoute('select_role');
@@ -182,6 +183,7 @@ new class extends Component {
             session([
                 'active_role_id' => 1,
             ]);
+            $this->dispatch('reloadPage');
 
         }
         if ($latest_otp->otp != $this->u_otp) {

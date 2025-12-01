@@ -3,12 +3,11 @@
         <flux:navlist>
             <flux:navlist.item :href="route('profile.edit')" wire:navigate>{{ __('نام کاربری') }}</flux:navlist.item>
             <flux:navlist.item :href="route('user-password.edit')" wire:navigate>{{ __('کلمه عبور') }}</flux:navlist.item>
+            <flux:navlist.item :href="route('select_role')" wire:navigate>{{ __('نقشهای من') }}</flux:navlist.item>
+            <flux:navlist.item :href="route('appearance.edit')" wire:navigate>{{ __('تم (تاریک / روشن)') }}</flux:navlist.item>
             @if (Laravel\Fortify\Features::canManageTwoFactorAuthentication())
                 <flux:navlist.item :href="route('two-factor.show')" wire:navigate>{{ __('کد دوعاملی') }}</flux:navlist.item>
             @endif
-            <flux:navlist.item :href="route('appearance.edit')" wire:navigate>{{ __('تم') }}</flux:navlist.item>
-
-            <flux:navlist.item :href="route('select_role')" wire:navigate>{{ __('نقشهای من') }}</flux:navlist.item>
         </flux:navlist>
     </div>
 

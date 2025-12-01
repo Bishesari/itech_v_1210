@@ -18,6 +18,7 @@
     <flux:navbar class="-mb-px max-lg:hidden">
         <flux:navbar.item icon="home" :href="route('home')" :current="request()->routeIs('home')" wire:navigate>{{ __('صفحه اول') }}</flux:navbar.item>
         <flux:navbar.item icon="inbox" :href="route('exams')" :current="request()->routeIs('exams')" wire:navigate>{{ __('آزمونها') }}</flux:navbar.item>
+        <flux:navbar.item icon="inbox" :href="route('icdl.purchase')" :current="request()->routeIs('icdl.purchase')" wire:navigate>{{ __('دوره ها') }}</flux:navbar.item>
     </flux:navbar>
 
     <flux:spacer />
