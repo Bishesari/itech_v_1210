@@ -121,13 +121,13 @@ new class extends Component {
             <flux:table.column align="center">{{__('نقشها در آموزشگاهها')}}</flux:table.column>
 
 
-            <flux:table.column align="center" sortable :sorted="$sortBy === 'created'" :direction="$sortDirection"
-                               wire:click="sort('created')">
+            <flux:table.column align="center" sortable :sorted="$sortBy === 'created_at'" :direction="$sortDirection"
+                               wire:click="sort('created_at')">
                 {{__('زمان ثبت')}}
             </flux:table.column>
 
-            <flux:table.column align="center" sortable :sorted="$sortBy === 'updated'" :direction="$sortDirection"
-                               wire:click="sort('updated')">
+            <flux:table.column align="center" sortable :sorted="$sortBy === 'updated_at'" :direction="$sortDirection"
+                               wire:click="sort('updated_at')">
                 {{__('زمان ویرایش')}}
             </flux:table.column>
             <flux:table.column align="center">{{__('عملیات')}}</flux:table.column>
