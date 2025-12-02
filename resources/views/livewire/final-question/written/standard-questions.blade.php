@@ -25,11 +25,11 @@ class extends Component {
         )
             ->where('is_final', true)
             ->with('options') // بارگذاری گزینه‌ها
+            ->orderBy('text')
             ->get();
     }
 
 }; ?>
-
 <div class="container mx-auto py-6">
 
     <h1 class="text-3xl font-bold mb-6">
@@ -43,23 +43,16 @@ class extends Component {
     @if($questions->isEmpty())
         <p class="text-gray-500">فعلاً سؤالی به عنوان پرتکرار نهایی ثبت نشده است.</p>
     @else
-        @foreach($questions as $q)
-            <div class="border rounded-lg p-4 mb-4 shadow-sm hover:shadow-md transition">
-                <p class="font-semibold mb-2">{{ $q->text }}</p>
-
-                <ul class="list-disc pl-5">
+        <flux:accordion transition exclusive>
+            @foreach($questions as $q)
+                <flux:accordion.item>
+                    <flux:accordion.heading class="font-semibold">{{$q->id . ' - ' . $q->text }}</flux:accordion.heading>
                     @foreach($q->options as $o)
-                        <li class="@if($o->is_correct) text-green-600 font-bold @endif">
-                            {{ $o->text }}
-                        </li>
+                        <flux:accordion.content><span class="@if($o->is_correct) text-green-600 font-bold @endif">{{ $o->text }}</span></flux:accordion.content>
                     @endforeach
-                </ul>
-
-                @if($q->explanation)
-                    <p class="text-gray-500 mt-2">توضیح: {{ $q->explanation }}</p>
-                @endif
-            </div>
-        @endforeach
+                </flux:accordion.item>
+            @endforeach
+        </flux:accordion>
     @endif
 
 </div>
