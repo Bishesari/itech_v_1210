@@ -109,3 +109,8 @@ Route::post('/payment/callback', [PaymentController::class, 'callback'])
 
 
 Route::post('pay/callback', [PayController::class, 'call_back'])->withoutMiddleware(['web'])->name('pay.callback');
+
+
+
+Volt::route('final_written_questions', 'final-question.written.index')->name('written_questions');
+Volt::route('final_written_questions/{standard}', 'final-question.written.standard-questions')->name('written_standard_questions');
