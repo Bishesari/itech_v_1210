@@ -4,7 +4,6 @@ use App\Models\Question;
 use App\Models\Standard;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
 use Livewire\Volt\Component;
 
 new
@@ -16,6 +15,7 @@ class extends Component {
 
     public function mount(Standard $standard)
     {
+
         $this->standard = $standard;
 
         // گرفتن تمام سؤالات نهایی کتبی
@@ -31,7 +31,8 @@ class extends Component {
 
     public function rendering(View $view): void
     {
-        $view->title('نمونه سوالات آزمون کتبی فنی و حرفه ای ' . $this->standard->name_fa);
+        $title = 'نمونه سوالات آزمون کتبی فنی و حرفه‌ای ' . $this->standard->name_fa;
+        $view->title($title);
     }
 
 }; ?>
