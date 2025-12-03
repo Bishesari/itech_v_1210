@@ -2,13 +2,13 @@
 
 use App\Models\Question;
 use App\Models\Standard;
+use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Volt\Component;
 
 new
 #[Layout('components.layouts.public')]
-#[Title('نمونه سوالات آزمون کتبی')]
 class extends Component {
 
     public Standard $standard;
@@ -29,31 +29,49 @@ class extends Component {
             ->get();
     }
 
+    public function rendering(View $view): void
+    {
+        $view->title('نمونه سوالات آزمون کتبی فنی و حرفه ای ' . $this->standard->name_fa);
+    }
+
 }; ?>
-<div class="container mx-auto py-6">
 
-    <h1 class="text-3xl font-bold mb-6">
-        سؤالات نهایی کتبی استاندارد: {{ $standard->name_fa }} ({{ $standard->code }})
-    </h1>
+<div class="container mx-auto">
+    <flux:heading size="lg" class="text-center relative">
+        {{ __('نمونه سوالات آزمون کتبی فنی و حرفه ای') }}
+        <a href="{{ route('written_questions') }}" class="absolute left-0">
+            <flux:icon name="arrow-uturn-left" class="text-blue-500" />
+        </a>
+    </flux:heading>
+    <flux:heading size="lg" class="text-center">{{$standard->name_fa}}</flux:heading>
+    <flux:subheading size="md" class="text-center">{{'کد: ' . $standard->code }}</flux:subheading>
+    <flux:separator variant="subtle" class="mt-2 mb-3"/>
 
-    <a href="{{ route('written_questions') }}" class="inline-block mb-6 text-blue-600 hover:underline">
-        ← بازگشت به لیست استانداردها
-    </a>
+    <flux:accordion transition exclusive>
+        @php($i=1)
+        @foreach($questions as $q)
+            <flux:accordion.item>
+                <flux:accordion.heading>
+                    <span>{{ $i++ }} - {{ $q->text }}</span>
+                    <span class="text-gray-500">{{'(' . $q->id.'#)'}}</span>
+                </flux:accordion.heading>
 
-    @if($questions->isEmpty())
-        <p class="text-gray-500">فعلاً سؤالی به عنوان پرتکرار نهایی ثبت نشده است.</p>
-    @else
-        <flux:accordion transition exclusive>
-            @foreach($questions as $q)
-                <flux:accordion.item>
-                    <flux:accordion.heading class="font-semibold">{{$q->id . ' - ' . $q->text }}</flux:accordion.heading>
-                    @foreach($q->options as $o)
-                        <flux:accordion.content><span class="@if($o->is_correct) text-green-600 font-bold @endif">{{ $o->text }}</span></flux:accordion.content>
-                    @endforeach
-                </flux:accordion.item>
-            @endforeach
-        </flux:accordion>
-    @endif
-
+                <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-1">
+                @foreach($q->options as $o)
+                    @if($o->is_correct)
+                        @php($var = 'success')
+                        @php($icon = 'check-circle')
+                    @else
+                        @php($var = 'secondary')
+                        @php($icon = '')
+                    @endif
+                    <flux:accordion.content>
+                        <flux:callout variant="{{$var}}" heading="{!! $o->text !!}" dir="{{$o->dir}}"
+                                      icon='{{$icon}}'/>
+                    </flux:accordion.content>
+                @endforeach
+                </div>
+            </flux:accordion.item>
+        @endforeach
+    </flux:accordion>
 </div>
-
