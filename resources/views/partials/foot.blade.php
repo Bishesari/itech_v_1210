@@ -4,15 +4,21 @@
         <a href="{{ route('home') }}" class="flex flex-col items-center" wire:navigate>
             <x-logo class="text-zinc-700 dark:text-zinc-300 h-12"/>
         </a>
+
+        <flux:text class="pt-2 tracking-tight">
+            {{__('موسس: بخشی زاده')}}
+        </flux:text>
+
         <flux:text class="pt-2 tracking-tight">
             {{__('مشاوره و تماس: 8163 056 935 98+')}}
         </flux:text>
         <flux:text class="pt-2 tracking-tight">
-            {{__('بوشهر، خیابان سنگی، ابتدای کوچه گلخونه، ساختمان سیراف 5')}}
+            {{__('بوشهر، خیابان سنگی، اول کوچه گلخونه، ساختمان سیراف 5')}}
         </flux:text>
-
-
     </div>
+
+    <flux:separator class="block md:hidden my-5" />
+
     <div class="text-center">
         <flux:text class="pt-2">
             <span class="font-semibold">&copy;</span>
@@ -22,13 +28,13 @@
         </flux:text>
 
         <flux:text class="pt-2">
-            {{__('برنامه نویسی و اجرا: یاسر بیشه سری')}}
-        </flux:text>
-
-        <flux:text class="pt-2">
             {{__('تماس: 6111 433 903 98+')}}
             {{__(' و ')}}
             {{__('Yasser.Bishesari@Gmail.Com')}}
+        </flux:text>
+
+        <flux:text class="pt-2">
+            {{__('برنامه نویسی و اجرا: یاسر بیشه سری')}}
         </flux:text>
 
         <flux:text class="pt-2">
