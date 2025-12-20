@@ -48,9 +48,10 @@
     </flux:sidebar.nav>
 </flux:sidebar>
 
-<flux:main>
+<flux:main container>
     {{ $slot }}
 </flux:main>
+@include('partials.foot')
 @fluxScripts
 </body>
 </html>

@@ -37,7 +37,8 @@
         "files": [
             "app/Functions/formats.php",
             "app/Functions/jdf.php",
-            "app/Functions/random_key_generate.php"
+            "app/Functions/random_key_generate.php",
+            "app/Helpers/PageVisitHelper.php"
         ]
     },
     "autoload-dev": {
