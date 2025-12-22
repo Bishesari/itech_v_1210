@@ -1,14 +1,9 @@
 <flux:footer
     class="bg-zinc-50 grid grid-cols-1 md:grid-cols-2 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-700">
+
     @php
-        // نام Route جاری
-        $currentRoute = Illuminate\Support\Facades\Route::currentRouteName() ?? request()->path();
-
-        // ثبت بازدید
-        \App\Helpers\PageVisitHelper::register($currentRoute);
-
-        // تعداد بازدید صفحه
-        $pageVisits = \App\Helpers\PageVisitHelper::count($currentRoute);
+        $pageKey = \App\Helpers\PageVisitHelper::resolvePageKey();
+        $visits  = \App\Helpers\PageVisitHelper::countHuman($pageKey);
     @endphp
 
     <div class="text-center">
@@ -53,7 +48,7 @@
             {{__('S.V: 12.1.5 - L.V:')}}
             {{__(Illuminate\Foundation\Application::VERSION)}}
             {{__(' - PHP.V: '.PHP_VERSION)}}
-            {{__(' - P.V: '.$pageVisits)}}
+            {{__(' - P.V: '. $visits )}}
         </flux:text>
 
         <flux:text class="pt-3">
@@ -61,4 +56,28 @@
         </flux:text>
 
     </div>
+
+    <script>
+        (function () {
+            if (document.cookie.includes('fp=')) return;
+
+            const data = [
+                navigator.userAgent,
+                navigator.language,
+                screen.width + 'x' + screen.height,
+                screen.colorDepth,
+                Intl.DateTimeFormat().resolvedOptions().timeZone,
+                navigator.hardwareConcurrency,
+            ].join('|');
+
+            crypto.subtle.digest('SHA-256', new TextEncoder().encode(data))
+                .then(buffer => {
+                    const hash = Array.from(new Uint8Array(buffer))
+                        .map(b => b.toString(16).padStart(2, '0'))
+                        .join('');
+                    document.cookie = `fp=${hash}; path=/; max-age=31536000; SameSite=Lax`;
+                });
+        })();
+    </script>
+
 </flux:footer>
