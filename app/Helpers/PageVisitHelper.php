@@ -4,45 +4,51 @@ namespace App\Helpers;
 
 use App\Models\PageVisitLog;
 use Illuminate\Support\Facades\Request;
+use Illuminate\Support\Facades\Route;
 
 class PageVisitHelper
 {
-    /**
-     * ثبت بازدید صفحه با جلوگیری از بازدید تکراری همان روز
-     *
-     * @param string $pageName
-     * @return void
-     */
-    public static function register(string $pageName): void
+    public static function resolvePageKey(): string
     {
-        $ip = Request::ip();
-        $userAgent = Request::header('User-Agent');
+        $routeName = Route::currentRouteName();
+
+        if ($routeName) {
+            $params = request()->route()?->parameters() ?? [];
+
+            if (!empty($params)) {
+                return $routeName . ':' . implode('-', $params);
+            }
+
+            return $routeName;
+        }
+
+        // fallback
+        return trim(request()->path(), '/');
+    }
+
+    public static function register(): void
+    {
+        $pageKey = self::resolvePageKey();
+
+        $ip = request()->ip();
         $today = now()->toDateString();
 
-        // بررسی اینکه کاربر امروز قبلا بازدید کرده یا نه
-        $alreadyVisited = PageVisitLog::where('page', $pageName)
+        $exists = PageVisitLog::where('page', $pageKey)
             ->where('ip', $ip)
             ->where('visit_date', $today)
             ->exists();
 
-        if (!$alreadyVisited) {
+        if (!$exists) {
             PageVisitLog::create([
-                'page' => $pageName,
+                'page' => $pageKey,
                 'ip' => $ip,
-                'user_agent' => $userAgent,
-                'visit_date' => $today
+                'user_agent' => request()->userAgent(),
+                'visit_date' => $today,
             ]);
         }
     }
-
-    /**
-     * گرفتن تعداد بازدید واقعی یک صفحه
-     *
-     * @param string $pageName
-     * @return int
-     */
-    public static function count(string $pageName): int
+    public static function count(): int
     {
-        return PageVisitLog::where('page', $pageName)->count();
+        return PageVisitLog::where('page', self::resolvePageKey())->count();
     }
 }
