@@ -2,206 +2,356 @@
 
 use App\Jobs\OtpSend;
 use App\Jobs\SmsPass;
+use App\Models\BranchRoleUser;
 use App\Models\Contact;
-use App\Models\InstituteRoleUser;
 use App\Models\OtpLog;
 use App\Models\User;
 use App\Rules\NCode;
+use Flux\Flux;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
-use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
-new #[Layout('components.layouts.auth')]
-class extends Component {
+new class extends Component {
+    // === Configuration ===
+    private const OTP_RESEND_DELAY = 120;         // seconds until next allowed send
+    private const OTP_TTL = 300;                  // seconds OTP is valid (e.g., 5 minutes)
+    private const MAX_PER_N_CODE_PER_DAY = 5;
+    private const MAX_UNIQUE_N_CODES_PER_IP_PER_DAY = 3;
+    private const OTP_TABLE = 'otp_logs';
+
+    // === Public properties (bound to UI) ===
+    public string $context = 'modal'; // modal | page
+    public string $f_name_fa = '';
+    public string $l_name_fa = '';
     public string $n_code = '';
-    public string $mobile_nu = '';
-    public int $timer = 0;
-    public string $otp_log_check_err = '';
+    public string $contact_value = '';
     public string $u_otp = '';
+    public int $timer = 0; // front-end countdown
+    public string $otp_log_check_err = '';
 
     protected function rules(): array
     {
         return [
+            'f_name_fa' => ['required', 'min:2', 'max:30'],
+            'l_name_fa' => ['required', 'min:2', 'max:30'],
             'n_code' => ['required', 'digits:10', new NCode, 'unique:profiles'],
-            'mobile_nu' => ['required', 'starts_with:09', 'digits:11'],
+            'contact_value' => ['required', 'starts_with:09', 'digits:11'],
         ];
     }
 
+    // -------------------------
+    // Step 1: show modal (no error shown here)
+    // -------------------------
     public function check_inputs(): void
     {
         $this->validate();
-        // مقدار تایمر برای این کد ملی باید مشخص شود.
-        $this->log_check();
+
+        // Read current timer state for this n_code (do not show error to the user yet)
+        $this->log_check(showError: false);
+
         $this->u_otp = '';
+        $this->otp_send();
         $this->modal('otp_verify')->show();
     }
 
+    // -------------------------
+    // Step 2: send otp (rate-limited)
+    // -------------------------
     public function otp_send(): void
     {
-        if ($this->log_check()) {
-            $this->u_otp = '';
-            $otp = NumericOTP();
-            OtpSend::dispatch($this->mobile_nu, $otp);
-            OtpLog::create([
-                'ip' => request()->ip(),
-                'n_code' => $this->n_code,
-                'mobile_nu' => $this->mobile_nu,
-                'otp' => $otp,
-                'otp_next_try_time' => time() + 120,
-            ]);
-            $this->timer = 120;
-            $this->dispatch('set_timer');
+        // Validate inputs first (prevents abuse of endpoint)
+        $this->validate();
+
+        // If rate limits / timers fail, show errors
+        if (!$this->log_check(showError: true)) {
+            return;
         }
-        $this->js("setTimeout(() => {window.dispatchEvent(new CustomEvent('focus-otp-input'))}, 100);");
+
+        $this->u_otp = '';
+
+        // Generate numeric OTP
+        $otp = NumericOTP();
+
+        // Encrypt OTP for storage (so DB leak doesn't reveal codes)
+        $encryptedOtp = encrypt($otp);
+
+        // Create log record
+        OtpLog::create([
+            'ip' => request()->ip(),
+            'n_code' => $this->n_code,
+            'contact_value' => $this->contact_value,
+            'otp' => $encryptedOtp,
+            'otp_next_try_time' => time() + self::OTP_RESEND_DELAY,
+            'otp_expires_at' => now()->addSeconds(self::OTP_TTL),
+        ]);
+
+        // Dispatch SMS job with plain OTP (job can be retried safely)
+        OtpSend::dispatch($this->contact_value, $otp);
+
+        // start client timer
+        $this->timer = self::OTP_RESEND_DELAY;
+        $this->dispatch('set_timer');
+
+        $this->dispatch('focus-otp');
     }
 
-    public function log_check(): bool
+    // -------------------------
+    // Rate-limit + timer inspection
+    // -------------------------
+    /**
+     * log_check
+     *
+     * @param bool $showError whether to populate $otp_log_check_err (true for otp_send; false for check_inputs)
+     * @return bool true => OK to send, false => blocked
+     */
+    public function log_check(bool $showError = true): bool
     {
+        $this->otp_log_check_err = '';
         $this->timer = 0;
+
         $ip = request()->ip();
         $n_code = $this->n_code;
-        $oneDayAgo = now()->subDay(); // 24 ساعت قبل
+        $oneDayAgo = now()->subDay();
 
-        // 3️⃣ آخرین رکورد برای n_code در 24 ساعت گذشته
-        $latest_n_code = DB::table('otp_logs')
+        // last record for this n_code in last 24 hours
+        $latest = DB::table(self::OTP_TABLE)
             ->where('n_code', $n_code)
             ->where('created_at', '>=', $oneDayAgo)
             ->latest('id')
             ->first();
 
-        // 1️⃣ تعداد کدملی‌های یکتا برای این IP در 24 ساعت گذشته
-        $unique_n_codes_for_ip = DB::table('otp_logs')
-            ->where('ip', $ip)
-            ->where('created_at', '>=', $oneDayAgo)
-            ->distinct('n_code')
-            ->count('n_code');
-
-        // 2️⃣ تعداد کل رکوردهای n_code در 24 ساعت گذشته
-        $total_n_code_count = DB::table('otp_logs')
+        // total sends for this n_code in last 24h
+        $countForNCode = DB::table(self::OTP_TABLE)
             ->where('n_code', $n_code)
             ->where('created_at', '>=', $oneDayAgo)
             ->count();
 
-        if ($latest_n_code) {
-            if ($latest_n_code->otp_next_try_time - time() > 0) {
-                $this->timer = $latest_n_code->otp_next_try_time - time();
+        // distinct n_codes for this ip in last 24h
+        $uniqueNcodesForIp = DB::table(self::OTP_TABLE)
+            ->selectRaw('COUNT(DISTINCT n_code) as cnt')
+            ->where('ip', $ip)
+            ->where('created_at', '>=', $oneDayAgo)
+            ->value('cnt') ?? 0;
+
+        // If we have a last record, check resend window and per-n-code limit
+        if ($latest) {
+            // If resend wait still active => block and set timer
+            if (!empty($latest->otp_next_try_time) && $latest->otp_next_try_time > time()) {
+                $this->timer = $latest->otp_next_try_time - time();
                 $this->dispatch('set_timer');
-                $this->otp_log_check_err = '';
-                return True;
-            }
-            if ($total_n_code_count < 5) {
-                $this->otp_log_check_err = '';
-                return True;
-            } else {
-                $this->otp_log_check_err = 'محدودیت کد ملی تا 24 ساعت';
+
+                if ($showError) {
+                    $this->otp_log_check_err = 'تا زمان امکان ارسال مجدد لطفاً منتظر بمانید!';
+                }
                 return false;
             }
-        } else {
-            if ($unique_n_codes_for_ip < 3) {
-                $this->otp_log_check_err = '';
-                return True;
-            } else {
-                $this->otp_log_check_err = 'محدودیت آی پی تا 24 ساعت';
+
+            // Per-n-code daily limit
+            if ($countForNCode >= self::MAX_PER_N_CODE_PER_DAY) {
+                if ($showError) {
+                    $this->otp_log_check_err = 'در ۲۴ ساعت گذشته حداکثر تعداد ارسال برای این کد ملی انجام شده است.';
+                }
                 return false;
             }
+
+            // allowed
+            return true;
         }
+
+        // if no latest record (first send for this n_code in 24h), check ip uniqueness limit
+        if ((int)$uniqueNcodesForIp >= self::MAX_UNIQUE_N_CODES_PER_IP_PER_DAY) {
+            if ($showError) {
+                $this->otp_log_check_err = 'این IP در ۲۴ ساعت گذشته بیش از حد مجاز ثبت‌نام انجام داده است.';
+            }
+            return false;
+        }
+
+        return true;
     }
 
+    // -------------------------
+    // Verify OTP and create user
+    // -------------------------
     public function otp_verify(): void
     {
-        $latest_otp = DB::table('otp_logs')
+        $this->otp_log_check_err = '';
+
+        // Find latest OTP record for this n_code + mobile
+        $latest = DB::table(self::OTP_TABLE)
             ->where('n_code', $this->n_code)
-            ->where('mobile_nu', $this->mobile_nu)
+            ->where('contact_value', $this->contact_value)
             ->latest('id')
             ->first();
-        if ($latest_otp->otp == $this->u_otp and time() < $latest_otp->otp_next_try_time) {
-            $this->dispatch('stop_timer');
-            $pass = simple_pass(8);
+
+        if (!$latest) {
+            $this->otp_log_check_err = 'هنوز کدی به این شماره ارسال نشده است.';
+            return;
+        }
+        // بازسازی تایمر برای جلوگیری از Expire اشتباه
+        if ($latest->otp_next_try_time > time()) {
+            $this->timer = $latest->otp_next_try_time - time();
+            $this->dispatch('set_timer');
+        }
+
+        // Check OTP expiry (use otp_expires_at field)
+        if (empty($latest->otp_expires_at) || now()->greaterThan($latest->otp_expires_at)) {
+            $this->otp_log_check_err = 'کد پیامکی منقضی شده است.';
+            return;
+        }
+
+        // Compare decrypted OTP
+        try {
+            $storedOtp = decrypt($latest->otp);
+        } catch (\Throwable $e) {
+            // corrupted/invalid ciphertext -> treat as non-match / expired
+            $this->otp_log_check_err = 'کد پیامکی نامعتبر یا منقضی است.';
+            return;
+        }
+
+        if (!hash_equals((string)$storedOtp, (string)$this->u_otp)) {
+            $this->otp_log_check_err = 'کد پیامکی اشتباه است.';
+            return;
+        }
+
+        // success: create user inside transaction
+        DB::transaction(function () use ($latest) {
+
+            $tempPass = $this->n_code;
+
             $user = User::create([
                 'user_name' => $this->n_code,
-                'password' => $pass
+                'password' => $tempPass,
             ]);
-            InstituteRoleUser::create([
+
+            BranchRoleUser::create([
                 'user_id' => $user->id,
                 'role_id' => 1,
                 'assigned_by' => $user->id,
             ]);
-            DB::table('otp_logs')->where('n_code', $this->n_code)->where('mobile_nu', $this->mobile_nu)->delete();
-            $contact = Contact::firstOrCreate(['mobile_nu' => $this->mobile_nu, 'verified' => 1]);
+
+            // remove OTP logs for this n_code + mobile
+            DB::table(self::OTP_TABLE)
+                ->where('n_code', $this->n_code)
+                ->where('contact_value', $this->contact_value)
+                ->delete();
+
+            // contact - search by mobile only, set verified flag if new
+            $contact = Contact::firstOrCreate(
+                ['contact_value' => $this->contact_value],
+                ['verified' => 1]
+            );
+
+            // create profile
             $user->profile()->create([
                 'identifier_type' => 'national_id',
                 'n_code' => $this->n_code,
+                'f_name_fa' => $this->f_name_fa,
+                'l_name_fa' => $this->l_name_fa,
             ]);
+
             $user->contacts()->syncWithoutDetaching([$contact->id]);
 
-            SmsPass::dispatch($this->mobile_nu, $this->n_code, $pass);
-            $this->otp_log_check_err = '';
+            // send the temporary password via SmsPass job
+            SmsPass::dispatch($this->contact_value, $this->n_code, $tempPass);
 
             event(new Registered($user));
             Auth::login($user);
-            Session::regenerate();
+
+            session()->regenerate();
             session([
                 'active_role_id' => 1,
+                'active_branch_id' => null,
             ]);
-            $this->redirectIntended(route('dashboard', absolute: false), navigate: true);
+        });
 
-        }
-        if ($latest_otp->otp != $this->u_otp) {
-            $this->otp_log_check_err = 'کد پیامکی اشتباه است.';
-            return;
-        }
-        if ($latest_otp->otp_next_try_time) {
-            $this->otp_log_check_err = 'کد منقضی شده است.';
+        // stop client timer and redirect or reload
+        $this->dispatch('stop_timer');
+
+        if ($this->context === 'modal') {
+            $this->dispatch('reloadPage');
+        } else {
+            $this->redirect('home');
         }
     }
-}; ?>
 
-<div>
-    <div class="flex flex-col gap-6">
-        <x-auth-header :title="__('ایجاد حساب کاربری')"
-                       :description="__('جهت ایجاد حساب، اطلاعات خواسته شده را وارد نمایید.')"/>
-        <!-- Session Status -->
-        <x-auth-session-status class="text-center" :status="session('status')"/>
-        <form method="POST" wire:submit="check_inputs" class="flex flex-col gap-6" autocomplete="off">
-            <x-my.flt_lbl name="n_code" label="{{__('کدملی:')}}" dir="ltr" maxlength="10"
-                          class="tracking-wider font-semibold" autofocus required/>
-            <x-my.flt_lbl name="mobile_nu" label="{{__('شماره موبایل:')}}" dir="ltr" maxlength="11"
-                          class="tracking-wider font-semibold" required/>
-            <flux:button type="submit" variant="primary" color="teal" class="w-full cursor-pointer">
-                {{ __('ادامه ثبت نام') }}
-            </flux:button>
-        </form>
+    public function reset_all(): void
+    {
+        $this->reset();
+        $this->resetErrorBag();
+        $this->otp_log_check_err = '';
+        $this->timer = 0;
+        $this->dispatch('stop_timer');
+    }
+};
+?>
 
-        <div class="space-x-1 rtl:space-x-reverse text-center text-sm text-zinc-600 dark:text-zinc-400">
+
+<div class="flex flex-col">
+    <x-auth-header :title="__('ایجاد حساب کاربری')" :description="__('جهت ایجاد حساب، اطلاعات را وارد نمایید.')"/>
+    <x-auth-session-status class="text-center" :status="session('status')"/>
+    <form wire:submit.prevent="check_inputs" class="flex flex-col gap-6 mt-5" autocomplete="off">
+        <x-my.flt_lbl name="f_name_fa" label="{{__('نام:')}}" maxlength="30"
+                      class="tracking-wider font-semibold" autofocus required/>
+
+        <x-my.flt_lbl name="l_name_fa" label="{{__('نام خانوادگی:')}}" maxlength="40"
+                      class="tracking-wider font-semibold" required/>
+
+        <x-my.flt_lbl name="n_code" label="{{__('کدملی:')}}" dir="ltr" maxlength="10"
+                      class="tracking-wider font-semibold" required/>
+        <x-my.flt_lbl name="contact_value" label="{{__('شماره موبایل:')}}" dir="ltr" maxlength="11"
+                      class="tracking-wider font-semibold" required/>
+        <flux:button type="submit" variant="primary" color="teal" class="w-full cursor-pointer">
+            {{ __('ادامه ثبت نام') }}
+        </flux:button>
+    </form>
+
+    @if($context === 'modal')
+        <div class="space-x-1 text-sm text-center rtl:space-x-reverse text-zinc-600 dark:text-zinc-400">
             <span>{{ __('حساب کاربری داشته اید؟') }}</span>
-            <flux:link :href="route('login')" wire:navigate>{{ __('وارد شوید') }}</flux:link>
+            <flux:modal.trigger name="login">
+                <flux:button variant="ghost" icon:trailing="arrow-down-left"
+                             x-on:click="$flux.modal('register').close()" size="sm"
+                             class="cursor-pointer">{{ __('وارد شوید.') }}</flux:button>
+            </flux:modal.trigger>
         </div>
+    @else
+        <div class="space-x-1 text-sm text-center rtl:space-x-reverse text-zinc-600 dark:text-zinc-400 mt-4">
+            <span>{{ __('حساب کاربری داشته اید؟') }}</span>
+            <flux:button :href="route('login')" wire:navigate variant="ghost" icon:trailing="arrow-down-left" size="sm"
+                         class="cursor-pointer">{{ __('وارد شوید.') }}
+            </flux:button>
+        </div>
+    @endif
 
-    </div>
 
     {{-------------------------- OTP VERIFY Modal --------------------------}}
-    <flux:modal name="otp_verify" class="md:w-96" :dismissible="false">
-        <form wire:submit="otp_verify" class="space-y-8">
+    <flux:modal name="otp_verify" class="md:w-96" :dismissible="false" focusable>
+        <form wire:submit.prevent="otp_verify" class="space-y-8">
             <div class="max-w-72 mx-auto space-y-2">
                 <flux:heading size="lg" class="text-center">{{__('تایید کد پیامکی')}}</flux:heading>
-                <flux:text class="text-center">{{__('دکمه ارسال را کلیک نموده و کد دریافتی را وارد کنید.')}}</flux:text>
+                <flux:text class="text-center">{{__('کد پیامک شده را وارد کنید.')}}</flux:text>
             </div>
-            <flux:otp wire:model="u_otp" submit="auto" length="6" label="OTP Code" label:sr-only :error:icon="false"
-                      error:class="text-center" class="mx-auto" dir="ltr"/>
+
+
+            <flux:otp wire:model="u_otp" id="otp-input-wrapper" submit="auto" :error:icon="false" error:class="text-center" class="mx-auto" dir="ltr">
+                <flux:otp.input autofocus/> <flux:otp.input /> <flux:otp.input />
+                <flux:otp.separator />
+                <flux:otp.input /> <flux:otp.input /><flux:otp.input />
+            </flux:otp>
+
+
             @if($otp_log_check_err)
                 <flux:text class="text-center" color="rose">{{$otp_log_check_err}}</flux:text>
             @endif
+
             <div class="space-y-4">
                 @if ($timer > 0)
-                    <!-- دکمه شمارنده ارسال پیامک -->
                     <flux:button wire:click="otp_send" class="w-full" disabled>
                         <span id="timer">{{$timer}}</span>{{ __(' ثانیه تا ارسال مجدد') }}
                     </flux:button>
                 @else
-                    <!-- دکمه ارسال پیامک -->
                     <flux:button wire:click="otp_send" variant="primary" color="teal"
                                  class="w-full cursor-pointer">{{ __('ارسال پیامک') }}</flux:button>
                 @endif
@@ -213,24 +363,65 @@ class extends Component {
     <script>
         let interval;
         let timer;
+
+        function clearTimerInterval() {
+            if (interval) {
+                clearInterval(interval);
+                interval = null;
+            }
+        }
+
         Livewire.on('set_timer', () => {
-            // مقدار جدید Livewire رو بگیر
-            timer = $wire.get('timer');
-            // شمارش قبلی رو پاک کن
-            if (interval) clearInterval(interval);
+            // read timer from Livewire
+            timer = Number($wire.get('timer')) || 0;
+
+            clearTimerInterval();
+
+            if (timer <= 0) {
+                document.getElementById('timer') && (document.getElementById('timer').innerHTML = '0');
+                return;
+            }
+
             interval = setInterval(() => {
                 timer--;
-                document.getElementById('timer').innerHTML = timer;
+                const el = document.getElementById('timer');
+                if (el) el.innerHTML = timer;
                 if (timer <= 0) {
-                    clearInterval(interval);
-                    interval = null; // cleanup
+                    clearTimerInterval();
                     $wire.set('timer', 0);
                 }
             }, 1000);
         });
+
         Livewire.on('stop_timer', () => {
-            clearInterval(interval);
+            clearTimerInterval();
+            $wire.set('timer', 0);
         });
+
+        // If modal closed unexpectedly, ensure cleanup (Flux modal event)
+        document.addEventListener('flux:modal:close', (e) => {
+            // depending on flux implementation event name may differ — this is a safeguard
+            clearTimerInterval();
+            $wire.set('timer', 0);
+        });
+
+        // کد برای فوکوس
+        Livewire.on('focus-otp', () => {
+            // یک تاخیر کوتاه (مثلا ۳۰۰ میلی‌ثانیه) می‌دهیم تا مدال کامل باز شود
+            setTimeout(() => {
+                // پیدا کردن کانتینر اصلی
+                const wrapper = document.getElementById('otp-input-wrapper');
+                if (wrapper) {
+                    // پیدا کردن اولین اینپوت داخل کانتینر
+                    const firstInput = wrapper.querySelector('input');
+                    if (firstInput) {
+                        firstInput.focus();
+                    }
+                }
+            }, 300);
+        });
+
     </script>
     @endscript
 </div>
+

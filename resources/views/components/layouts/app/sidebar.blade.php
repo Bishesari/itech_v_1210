@@ -19,6 +19,7 @@
         <x-logo class="text-zinc-700 dark:text-zinc-300 h-10 "/>
     </a>
     <flux:navlist variant="outline">
+
         @if ($activeRole)
             @includeIf('partials.sidebars.' . $activeRole->name_en)
         @else

@@ -6,34 +6,51 @@ use Livewire\Attributes\Title;
 use Livewire\Volt\Component;
 
 new
-#[Layout('components.layouts.guest')]
+#[Layout('components.layouts.auth')]
 #[Title('انتخاب نقش')]
 class extends Component {
     public $roles = [];
-    public string $selectedRoleId = ''; // نقش انتخابی
+
+    public ?int $selectedRoleId = null;
+    public ?int $selectedBranchId = null;
 
     public function mount(): void
     {
-        $this->roles = Auth::user()->getAllRolesWithInstitutes();
+        $roles = auth()->user()->getAllRolesWithBranches();
+
+        if ($roles->count() === 1) {
+            $role = $roles->first();
+
+            session([
+                'active_role_id'   => $role->role_id,
+                'active_branch_id' => $role->branch_id,
+            ]);
+
+            $this->redirectIntended('dashboard', navigate: true);
+            return;
+        }
+        $this->roles = $roles;
     }
 
-    public function setRole($roleId, $instituteId): void
+    public function setRole($roleId, $branch_id): void
     {
         $this->selectedRoleId = $roleId;
-        session([
-            'active_role_id' => $roleId,
-            'active_institute_id' => $instituteId ?? '',
-        ]);
+        $this->selectedBranchId = $branch_id;
     }
+
 
     public function dashboard(): void
     {
         if (empty($this->selectedRoleId)) {
-            $this->addError('role_id', 'لطفاً یک نقش انتخاب کنید.');
+            $this->addError('selectedRoleId', 'لطفاً یک نقش انتخاب کنید.');
             return;
         }
+        session([
+            'active_role_id'   => $this->selectedRoleId,
+            'active_branch_id' => $this->selectedBranchId ?? '',
+        ]);
         // ✅ همه‌چیز اوکیه، هدایت به داشبورد
-        $this->redirectIntended(route('dashboard'));
+        $this->redirectIntended('dashboard', navigate: true);
     }
 
 }; ?>
@@ -53,7 +70,7 @@ class extends Component {
     <flux:radio.group variant="cards" class="grid gap-4">
         @forelse($roles as $r)
             <flux:radio
-                wire:click="setRole({{ $r->role_id }}, {{ $r->institute_id ?? 'null' }})"
+                wire:click="setRole({{ $r->role_id }}, {{ $r->branch_id ?? 'null' }})"
                 class="cursor-pointer {{ $selectedRoleId == $r->role_id ? 'text-green-600 dark:text-green-500' : 'text-gray-600 dark:text-gray-400' }} "
             >
                 <div class="flex items-center justify-between w-full">
@@ -62,10 +79,10 @@ class extends Component {
                         {{ $r->role_name }}
                     </span>
 
-                    <!-- آموزشگاه (سمت چپ) -->
-                    @if($r->institute_name)
+                    <!-- شعبه (سمت چپ) -->
+                    @if($r->branch_name)
                         <span class="text-sm">
-                           {{__('آموزشگاه ')}} {{ $r->institute_name }}
+                           {{__('شعبه ')}} {{ $r->branch_name }}
                         </span>
                     @endif
                 </div>
@@ -76,13 +93,14 @@ class extends Component {
     </flux:radio.group>
 
     <!-- Error -->
-    @error('role_id')
+    @error('selectedRoleId')
     <p class="text-red-500 text-sm text-center">{{ $message }}</p>
     @enderror
 
     <!-- CTA Button -->
     <flux:button
         wire:click="dashboard"
+        :disabled="!$selectedRoleId"
         variant="primary"
         color="sky"
         class="cursor-pointer w-full py-2 text-sm font-medium mt-4"
